@@ -48,6 +48,7 @@ def unique_possibility(base, boxco):
 
 def stepper(base):
     n = base.shape[0]
+    Base = base.copy()
     boxcos = sudoku.get_box_topleft_coords(n)
     num_zeros = np.count_nonzero(base==0)
     improvement = 0
@@ -58,11 +59,11 @@ def stepper(base):
             improvement = np.count_nonzero(base==0)
             if improvement == 0:
                 break
-        sudoku.print_sudoku_style(base)
+        sudoku.print_sudoku_progress(Base, base)
         print("\n\n")
     
     print("\033[92mSUDOKU FINISHED !\033[0m: finished base:")
-    sudoku.print_sudoku_style(base)
+    sudoku.print_sudoku_progress(Base, base)
     return base
 
 stepper(sudoku.initialization(9))

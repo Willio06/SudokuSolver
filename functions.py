@@ -1,7 +1,31 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+def print_sudoku_progress(base, progress):
+    GRAY = '\033[90m'
+    YELLOW = '\033[93m'
+    RESET = '\033[0m'
+    
+    n = base.shape[0]
+    block_size = int(math.sqrt(n))
 
+    for i in range(n):
+        if i % block_size == 0 and i != 0:
+            print('-' * (4 * n + block_size - 8))
+        
+        row = ''
+        for j in range(n):
+            if j % block_size == 0 and j != 0:
+                row += '| '
+            
+            val = progress[i, j]
+            if val == 0:
+                row += f'{GRAY} 0{RESET} '
+            elif val != base[i, j]:
+                row += f'{YELLOW}{val:2}{RESET} '
+            else:
+                row += f'{val:2} '
+        print(row)
 def print_sudoku_style(arr):
     GRAY = '\033[90m'
     RESET = '\033[0m'
