@@ -1,3 +1,12 @@
 matplotlib
 numpy
 pandas
+split-image
+openml==0.15.1
+scikit-learn~=1.6
+torch
+pillow
+tqdm
+torchvision
+pytorch_lightning
+openml-pytorch
