@@ -379,7 +379,7 @@ class ResNet18(nn.Module):
 # Create your model
 # Define how you train your model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+print(f"Using device: {device}")
 def train_model_1(model,logger, criter, optimizer, scheduler, epochs=30):
     for epoch in range(epochs):
         trainLoss=[]
