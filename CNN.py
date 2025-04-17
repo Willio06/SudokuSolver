@@ -214,7 +214,8 @@ class ModelLogger(pl.Callback):
         self.finalize(pl_module)
 
 class Loader():
-    def __init__(self, X, y):
+    def __init__(self, X, y, transform=None):
+        self.transform = transform
         self.X = X.reset_index(drop=True)
         self.y = y.reset_index(drop=True)
         self.X = torch.tensor(self.X.values).reshape(-1, 1, 28, 28)
@@ -224,6 +225,8 @@ class Loader():
     def __getitem__(self, idx):
         x_item = self.X[idx]
         y_item = self.y[idx]
+        if self.transform:
+            x_item = self.transform(x_item)
         assert y_item.numel() > 0, f"Empty label at index {idx}"
         return x_item, y_item
 
@@ -232,6 +235,17 @@ torch.cuda.is_available()
 MNIST = openml.datasets.get_dataset(554)
 X_all, y_all, categorical_indicator, attribute_names = MNIST.get_data(target=MNIST.default_target_attribute)
 X_all = X_all.astype(float)/255.0  # Normalize the dataset to [0, 1]
+
+noise = np.random.normal(loc=0.0, scale=0.1, size=(4000, 28*28))
+noise = np.clip(noise, 0, 1)  # Keep values in valid pixel range
+X_new = pd.DataFrame(noise)
+X_new.columns = [f"pixel{i+1}" for i in range(28*28)]
+Y_new = pd.Series([10] * 4000).astype(object)
+
+X_all = pd.concat([X_all, X_new], ignore_index=True)
+y_all = pd.concat([y_all, Y_new], ignore_index=True)
+
+y_all = y_all.astype(int)
 print("The dataset has {} images of numbers and {} classes".format(X_all.shape[0], len(np.unique(y_all))))
 label_to_idx = {label: idx for idx, label in enumerate(sorted(y_all.unique()))}
 idx_to_label = {idx: label for label, idx in label_to_idx.items()}
@@ -243,8 +257,12 @@ print(f"Train set size: {X_train.shape[0]}, Test set size: {X_test.shape[0]}")
 # Train-validation split
 X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
 
-
-train_loader = Loader(X_train, y_train)
+transformss = transforms.Compose([
+    transforms.Lambda(lambda x: x.type(torch.float32)),  # Convert to float32
+    transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.9, 1.1)),  # Random affine transformation
+    transforms.GaussianNoise(0.1)  # Add Gaussian noise
+])
+train_loader = Loader(X_train, y_train, transform=transformss)
 val_loader = Loader(X_val, y_val)
 test_loader = Loader(X_test, y_test)
 
@@ -270,7 +288,7 @@ def show_sample_images(dataset, num_samples=10):
     plt.tight_layout()
     plt.show()
 
-# show_sample_images(train_loader)
+show_sample_images(train_loader)
 torch.set_float32_matmul_precision('medium')
 
 
@@ -315,67 +333,7 @@ class MNIST_ResNet(pl.LightningModule):
         features = self.resnet(x)
         logits = self.classifier(features)
         return logits.squeeze(1)
-class BasicBlock(nn.Module):
-    def __init__(self, in_channels, out_channels,stride=1):
-        super(BasicBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(out_channels)
-            )
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out += self.shortcut(x)
-        out = self.relu(out)
-        return out
-class ResNet18(nn.Module):
-    def __init__(self, num_classes=315):
-        super(ResNet18, self).__init__()
-        self.in_channels = 64
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.dropout = nn.Dropout(0.5)
-        self.layer1 = self._make_layer(BasicBlock, 64, 2, stride=1)
-        self.layer2 = self._make_layer(BasicBlock, 128, 2, stride=2)
-        self.layer3 = self._make_layer(BasicBlock, 256, 2, stride=2)
-        self.layer4 = self._make_layer(BasicBlock, 512, 2, stride=2) 
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512, num_classes)
-    def _make_layer(self, block, out_channels, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_channels, out_channels, stride))
-            self.in_channels = out_channels
-        return nn.Sequential(*layers)
-    def forward(self, x):
-        x = x.type(torch.cuda.FloatTensor)  # not usually necessary, but valid
 
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.maxpool(out)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-        out = self.avgpool(out)
-        out = out.view(out.size(0), -1)
-        out = self.dropout(out)
-        out = self.fc(out)
-        return out
 # Create your model
 # Define how you train your model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -448,18 +406,18 @@ def train_model_1(model,logger, criter, optimizer, scheduler, epochs=30):
         train_acc = np.mean(trainAcc)
         val_acc = np.mean(valAcc)
         logger.log_epoch(train_loss, val_loss, train_acc, val_acc)
-        # scheduler.step()
+        scheduler.step()
     # Save
     logger.finalize(model)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = MNIST_ResNet(classes=10)
+model = MNIST_ResNet(classes=11)
 model=model.to(device)
 # Create logger with model name
-logger = ModelLogger("model_1", test_loader, device=device)
+logger = ModelLogger("model_1", DataLoader(test_loader, batch_size=32, shuffle=True), device=device)
 criter = nn.CrossEntropyLoss(label_smoothing=0.1).to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.01)#, weight_decay=0.001)
-scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.008, epochs=100, steps_per_epoch=len(train_loader), pct_start=0.1, div_factor=10, final_div_factor=100,anneal_strategy="cos")
+scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, epochs=20, steps_per_epoch=len(train_loader), pct_start=0.1, div_factor=10, final_div_factor=100,anneal_strategy="cos")
 
 # This will load your data from file rather than training it. 
 # Make sure to set skip_training to True before submitting.
@@ -467,4 +425,4 @@ if skip_training:
     model = logger.load_model(model)
     logger.report()
 else:
-    train_model_1(model, logger,criter, optimizer,scheduler, epochs=100)
+    train_model_1(model, logger,criter, optimizer,scheduler, epochs=20)
