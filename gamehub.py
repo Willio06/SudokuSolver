@@ -66,4 +66,4 @@ def stepper(base):
     sudoku.print_sudoku_progress(Base, base)
     return base
 
-stepper(sudoku.initialization(9))
+# stepper(sudoku.initialization(9))

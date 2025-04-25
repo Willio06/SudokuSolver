@@ -165,4 +165,4 @@ def check_contradiction(base):
             return True
     return False
 
-print_sudoku_style(initialization(9))
+# print_sudoku_style(initialization(9))

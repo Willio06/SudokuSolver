@@ -2,8 +2,6 @@ import openml
 import os
 import json
 import random
-import math
-import warnings
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,20 +9,16 @@ import matplotlib.pyplot as plt
 import torch
 from torch import optim
 
-import torch.nn.functional as F
 import pytorch_lightning as pl
 import torchvision.models as models
 import torchvision.transforms.v2 as transforms
-import openml_pytorch as opt
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+import openml_pytorch as opt
+import openml
+
+from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-
-import torch
-from torch.utils.data import Dataset, DataLoader
-
-skip_training = False
 
 class ModelLogger(pl.Callback):
     """ Helper class to log metrics and save models in a systematic way.
@@ -231,67 +225,6 @@ class Loader():
         return x_item, y_item
 
 
-torch.cuda.is_available()
-MNIST = openml.datasets.get_dataset(554)
-X_all, y_all, categorical_indicator, attribute_names = MNIST.get_data(target=MNIST.default_target_attribute)
-X_all = X_all.astype(float)/255.0  # Normalize the dataset to [0, 1]
-
-noise = np.random.normal(loc=0.0, scale=0.1, size=(4000, 28*28))
-noise = np.clip(noise, 0, 1)  # Keep values in valid pixel range
-X_new = pd.DataFrame(noise)
-X_new.columns = [f"pixel{i+1}" for i in range(28*28)]
-Y_new = pd.Series([10] * 4000).astype(object)
-
-X_all = pd.concat([X_all, X_new], ignore_index=True)
-y_all = pd.concat([y_all, Y_new], ignore_index=True)
-
-y_all = y_all.astype(int)
-print("The dataset has {} images of numbers and {} classes".format(X_all.shape[0], len(np.unique(y_all))))
-label_to_idx = {label: idx for idx, label in enumerate(sorted(y_all.unique()))}
-idx_to_label = {idx: label for label, idx in label_to_idx.items()}
-y_all = y_all.map(label_to_idx)
-
-# Train-test split and data loaders
-X_train, X_test, y_train, y_test = train_test_split(X_all, y_all, test_size=0.2, random_state=42, stratify=y_all)
-print(f"Train set size: {X_train.shape[0]}, Test set size: {X_test.shape[0]}")
-# Train-validation split
-X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
-
-transformss = transforms.Compose([
-    transforms.Lambda(lambda x: x.type(torch.float32)),  # Convert to float32
-    transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.9, 1.1)),  # Random affine transformation
-    transforms.GaussianNoise(0.1)  # Add Gaussian noise
-])
-train_loader = Loader(X_train, y_train, transform=transformss)
-val_loader = Loader(X_val, y_val)
-test_loader = Loader(X_test, y_test)
-
-def show_sample_images(dataset, num_samples=10):
-    """
-    Show sample images from a PandasDataset.
-
-    Args:
-        dataset (PandasDataset): Dataset with 784-dim flattened images in X.
-        num_samples (int): Number of images to display.
-    """
-    indices = random.sample(range(len(dataset)), num_samples)
-    images, labels = zip(*[dataset[i] for i in indices])
-    # Stack and reshape images (assumes transform_X returns torch tensors)
-    images = [img.numpy().reshape((28,28)) for img in images]
-    
-    plt.figure(figsize=(15, 5))
-    for i in range(num_samples):
-        plt.subplot(2, 5, i + 1)
-        plt.imshow(images[i], cmap='plasma')
-        plt.title(f"Label: {labels[i]}")
-        plt.axis('off')
-    plt.tight_layout()
-    plt.show()
-
-show_sample_images(train_loader)
-torch.set_float32_matmul_precision('medium')
-
-
 class MNIST_ResNet(pl.LightningModule):
     def __init__(self, finetune_mode="full", classes=10):
         super().__init__()
@@ -328,17 +261,27 @@ class MNIST_ResNet(pl.LightningModule):
         # else 'head': leave everything except classifier frozen
 
     def forward(self, x):
-        x = x.type(torch.cuda.FloatTensor)  # not usually necessary, but valid
+        # x = x.type(torch.cuda.FloatTensor)  # not usually necessary, but valid
 
         features = self.resnet(x)
         logits = self.classifier(features)
         return logits.squeeze(1)
+def show_sample_images(dataset, num_samples=10):
+    indices = random.sample(range(len(dataset)), num_samples)
+    images, labels = zip(*[dataset[i] for i in indices])
+        # Stack and reshape images (assumes transform_X returns torch tensors)
+    images = [img.numpy().reshape((28,28)) for img in images]
+        
+    plt.figure(figsize=(15, 5))
+    for i in range(num_samples):
+        plt.subplot(2, 5, i + 1)
+        plt.imshow(images[i], cmap='plasma')
+        plt.title(f"Label: {labels[i]}")
+        plt.axis('off')
+    plt.tight_layout()
+    plt.show()
 
-# Create your model
-# Define how you train your model
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-def train_model_1(model,logger, criter, optimizer, scheduler, epochs=30):
+def train_model_1(model,logger, criter, optimizer, scheduler, train_loader, val_loader, device, epochs=30):
     for epoch in range(epochs):
         trainLoss=[]
         trainAcc=[]
@@ -410,19 +353,63 @@ def train_model_1(model,logger, criter, optimizer, scheduler, epochs=30):
     # Save
     logger.finalize(model)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = MNIST_ResNet(classes=11)
-model=model.to(device)
-# Create logger with model name
-logger = ModelLogger("model_1", DataLoader(test_loader, batch_size=32, shuffle=True), device=device)
-criter = nn.CrossEntropyLoss(label_smoothing=0.1).to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.01)#, weight_decay=0.001)
-scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, epochs=20, steps_per_epoch=len(train_loader), pct_start=0.1, div_factor=10, final_div_factor=100,anneal_strategy="cos")
 
-# This will load your data from file rather than training it. 
-# Make sure to set skip_training to True before submitting.
-if skip_training:
-    model = logger.load_model(model)
-    logger.report()
-else:
-    train_model_1(model, logger,criter, optimizer,scheduler, epochs=20)
+def main():
+    skip_training= True
+
+    torch.cuda.is_available()
+    MNIST = openml.datasets.get_dataset(554)
+    X_all, y_all, categorical_indicator, attribute_names = MNIST.get_data(target=MNIST.default_target_attribute)
+    X_all = X_all.astype(float)/255.0  # Normalize the dataset to [0, 1]
+
+    noise = np.random.normal(loc=0.0, scale=0.1, size=(4000, 28*28))
+    noise = np.clip(noise, 0, 1)  # Keep values in valid pixel range
+    X_new = pd.DataFrame(noise)
+    X_new.columns = [f"pixel{i+1}" for i in range(28*28)]
+    Y_new = pd.Series([10] * 4000).astype(object)
+
+    X_all = pd.concat([X_all, X_new], ignore_index=True)
+    y_all = pd.concat([y_all, Y_new], ignore_index=True)
+
+    y_all = y_all.astype(int)
+    print("The dataset has {} images of numbers and {} classes".format(X_all.shape[0], len(np.unique(y_all))))
+    label_to_idx = {label: idx for idx, label in enumerate(sorted(y_all.unique()))}
+    idx_to_label = {idx: label for label, idx in label_to_idx.items()}
+    y_all = y_all.map(label_to_idx)
+
+    # Train-test split and data loaders
+    X_train, X_test, y_train, y_test = train_test_split(X_all, y_all, test_size=0.2, random_state=42, stratify=y_all)
+    print(f"Train set size: {X_train.shape[0]}, Test set size: {X_test.shape[0]}")
+    # Train-validation split
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42, stratify=y_train)
+
+    transformss = transforms.Compose([
+        transforms.Lambda(lambda x: x.type(torch.float32)),  # Convert to float32
+        transforms.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.9, 1.1)),  # Random affine transformation
+        transforms.GaussianNoise(0.1)  # Add Gaussian noise
+    ])
+    train_loader = Loader(X_train, y_train, transform=transformss)
+    val_loader = Loader(X_val, y_val)
+    test_loader = Loader(X_test, y_test)
+
+    show_sample_images(train_loader)
+    torch.set_float32_matmul_precision('medium')
+
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    model = MNIST_ResNet(classes=11)
+    model=model.to(device)
+    # Create logger with model name
+    logger = ModelLogger("model_1", DataLoader(test_loader, batch_size=32, shuffle=True), device=device)
+    criter = nn.CrossEntropyLoss(label_smoothing=0.1).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)#, weight_decay=0.001)
+    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, epochs=20, steps_per_epoch=len(train_loader), pct_start=0.1, div_factor=10, final_div_factor=100,anneal_strategy="cos")
+
+    # This will load your data from file rather than training it. 
+    # Make sure to set skip_training to True before submitting.
+    if skip_training:
+        model = logger.load_model(model)
+        logger.report()
+    else:
+        train_model_1(model, logger,criter, optimizer,scheduler,train_loader,val_loader,device, epochs=20)
