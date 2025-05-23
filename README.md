@@ -44,3 +44,7 @@ A contradiction would make the sudoku not solvable. These are only two condition
 ### Some Images
 [![Result 1](result1.png "Result1")](result1.png)
 [![Result 2](result2.png "Result2")](result2.png)
+
+
+### Disclaimer
+I know it's messy. The repo is just everything thrown together. Same for the code. I don't care, it's just a side show.
