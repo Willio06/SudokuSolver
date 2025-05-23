@@ -26,6 +26,9 @@ This part is done repeatedly until it is *exhausted*. This is done multiple time
 - If there is a cell with a single possibility, it must be that one
 - If there is a number that is only possible in a single cell, it must be that one. Note the difference with the other statement. A cell can have two possibilities with one only being available at that cell. 
 
+
+
+There is an extra method added to narrow down possibilities. It is based on how I solved sudokus. When in a box, when there is a line of cells, that all have the same number in their options. And this number is exclusively in that line of cells, one can rule out the entire column or row for that number since it will be in the line anyway. However, this adds more time to getting the possibilities, and so to solving. Thus, not advicing to use it. It is available as a boolean variable in the possibilities function.
 ### 3) Back Tracking
 This works recursively in the following way:
 - search for some boxes with lesser possibilities (default $k=2$). Lesser, such one can easily guess all options.
