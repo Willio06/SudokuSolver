@@ -1,2 +1,46 @@
 # SudokuSolver
-to do
+[Welcome to the this pleasure dome](https://www.youtube.com/watch?v=XcSLxE_a-H8&t=1s) of ugly code, but working algorithms.
+
+This algorithm was made in light of how I solve sudokus. Sudokus I make to waste my time, rather than studying for the exams.
+Anyway here is a quick overview:
+
+## Ommmmggg, how do I get my sudoku in python????
+Ommmmgggg, I feel you queen. I made it so it's all in NumPy. Guess you'll have to copy it by hand in a vector array...
+SIKE
+
+Just plug in a screenshot of your puzzle. A CNN trained on numbers will do the hard work for you. It might take some time to load in at the start. But it will be faster than making doing it manually. The way it works is simple (and so if it doesn't work for you...):
+
+- Makes the image square
+- Cuts in $n^2$ beautiful image blocks (default $n=9$)
+- Puts it through the CNN
+
+The CNN itself is a ResNet18 pretrained on the Imagenet 1k dataset, then fully unfrozen, continued training on a tweaked MNIST dataset (tweaked such that it distinguishes empty boxes). Thus, if it doesn't work, try to make a cleaner screenshot of your puzzle. Have a look at some of the screenshots in this repo for example.
+
+## The Steps of Doom *aka* The Algorithm
+
+### 1) Exhausting unicity
+This part is done repeatedly until it is *exhausted*. This is done multiple times after 
+>! the backtracking (spoilers!!!)
+
+. And this is what fills in the boxes. It works on the collection of possibilities per square. This is easily obtainable as the set difference of $[1,...,n]$ with the respective row, column and box of a cell. It checks for 2 things and 2 things only
+- If there is a cell with a single possibility, it must be that one
+- If there is a number that is only possible in a single cell, it must be that one. Note the difference with the other statement. A cell can have two possibilities with one only being available at that cell. 
+
+### 3) Back Tracking
+This works recursively in the following way:
+- search for some boxes with lesser possibilities (default $k=2$). Lesser, such one can easily guess all options.
+- consistently check for [contradictions](#what-is-a-contradiction) 
+- Try them depth first, i.e. when no contradiction is (immediately) found, just continue and exhaust it. 
+- No contradiction and not solved, make another guess
+- Contradiction found, return $False$ signal to let the rest know to drop that branch
+- Rinse and repeat
+
+
+### What is a Contradiction
+A contradiction would make the sudoku not solvable. These are only two conditions.
+- If there is an empty cell with no possibilities
+- If there is a number with no possible cell
+
+### Some Images
+[![Result 1](result1.png "Result1")](result1.png)
+[![Result 2](result2.png "Result2")](result2.png)

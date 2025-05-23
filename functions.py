@@ -1,168 +1,210 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-def print_sudoku_progress(base, progress):
-    GRAY = '\033[90m'
-    YELLOW = '\033[93m'
-    RESET = '\033[0m'
-    
-    n = base.shape[0]
-    block_size = int(math.sqrt(n))
+from collections import defaultdict
+class Sudoku(object):
+    def __init__(self, base):
+        self.base = base
+        self.n = base.shape[0]
+        self.progress =(np.count_nonzero(self.base)/self.n**2)*100
+        self.original = np.copy(base)
 
-    for i in range(n):
-        if i % block_size == 0 and i != 0:
-            print('-' * (4 * n + block_size - 8))
-        
-        row = ''
-        for j in range(n):
-            if j % block_size == 0 and j != 0:
-                row += '| '
+        if(int(np.sqrt(self.n))**2 != self.n):
+            raise ValueError("n must be a perfect square")
+        starts = np.arange(0, self.n, int(self.n**0.5))
+        ii, jj = np.meshgrid(starts, starts, indexing='ij')
+        self.boxCoos= np.stack([ii.ravel(), jj.ravel()], axis=1)
+    def updateProgress(self):
+        self.progress =(np.count_nonzero(self.base)/self.n**2)*100
+        return self.progress
+    def print_sudoku_progress(self):
+        GRAY = '\033[90m'
+        YELLOW = '\033[93m'
+        RESET = '\033[0m'
+        base = self.original
+        progress = self.base
+        n = base.shape[0]
+        block_size = int(math.sqrt(n))
+
+        for i in range(n):
+            if i % block_size == 0 and i != 0:
+                print('-' * (4 * n + block_size - 8))
             
-            val = progress[i, j]
-            if val == 0:
-                row += f'{GRAY} 0{RESET} '
-            elif val != base[i, j]:
-                row += f'{YELLOW}{val:2}{RESET} '
-            else:
-                row += f'{val:2} '
-        print(row)
-def print_sudoku_style(arr):
-    GRAY = '\033[90m'
-    RESET = '\033[0m'
-    n = arr.shape[0]
-    block_size = int(math.sqrt(n))
+            row = ''
+            for j in range(n):
+                if j % block_size == 0 and j != 0:
+                    row += '| '
+                
+                val = progress[i, j]
+                if val == 0:
+                    row += f'{GRAY} 0{RESET} '
+                elif val != self.original[i, j]:
+                    row += f'{YELLOW}{val:2}{RESET} '
+                else:
+                    row += f'{val:2} '
+            print(row)
+        print("\n")
+    def print_sudoku(self):
+        GRAY = '\033[90m'
+        RESET = '\033[0m'
+        arr = self.base
+        n = arr.shape[0]
+        block_size = int(math.sqrt(n))
 
-    for i in range(n):
-        # Print horizontal block separator
-        if i % block_size == 0 and i != 0:
-            print('-' * (4 * n + block_size - 8))
-        
-        row = ''
-        for j in range(n):
-            # Print vertical block separator
-            if j % block_size == 0 and j != 0:
-                row += '| '
+        for i in range(n):
+            # Print horizontal block separator
+            if i % block_size == 0 and i != 0:
+                print('-' * (4 * n + block_size - 8))
             
-            val = arr[i, j]
-            if val == 0:
-                row += f'{GRAY} 0{RESET} '
+            row = ''
+            for j in range(n):
+                # Print vertical block separator
+                if j % block_size == 0 and j != 0:
+                    row += '| '
+                
+                val = arr[i, j]
+                if val == 0:
+                    row += f'{GRAY} 0{RESET} '
+                else:
+                    row += f'{val:2} '
+            print(row)
+        print("\n")
+    def extract_groups_vectorized(self, coords, mode="box", indices=False):
+        arr = self.base
+        n = arr.shape[0]
+        b = int(math.sqrt(n))
+        coords = np.array(coords)
+
+        def get_indices(i, j):
+            if mode == "row":
+                return np.full(n, i), np.arange(n)
+            elif mode == "column":
+                return np.arange(n), np.full(n, j)
+            elif mode == "box":
+                ti, tj = (i // b) * b, (j // b) * b
+                di, dj = np.meshgrid(np.arange(b), np.arange(b), indexing='ij')
+                return ti + di.ravel(), tj + dj.ravel()
             else:
-                row += f'{val:2} '
-        print(row)
-def initialization(n):
-    if(int(np.sqrt(n))**2 != n):
-        raise ValueError("n must be a perfect square")
-    base = np.zeros((n,n), dtype=int)
-    coos = np.array([(0,0,4),(0,2,3),(0,3,5),(0,3,5),(0,4,9),(0,6,7),(0,7,2),(1,1,8),(1,3,6),(1,7,3),(2,0,7),
-            (2,2,9),(2,5,4),(2,8,5),(3,0,1),(3,1,5),(3,2,8),(3,4,6),(4,1,7),(4,2,2),(4,6,8),(4,8,9),
-            (5,3,2),(5,4,3),(5,5,8),(5,6,5),(5,7,7),(6,1,1),(6,2,5),(6,3,4),(6,8,2),(7,3,8),(7,5,3),(7,6,4),(7,7,5),
-            (8,1,3),(8,5,2),(8,7,8),(8,8,7)])
-    coos =  np.array([
-    (0, 1, 2), (0, 2, 4), (0, 4, 3), (0, 7, 1),
-    (1, 2, 9), (1, 6, 5), (1, 7, 3), (1, 8, 8),
-    (2, 1, 6), (2, 3, 1), (2, 4, 7), (2, 5, 8), (2, 7, 9),
-    (3, 0, 3), (3, 2, 6), (3, 3, 2), (3, 4, 9), (3, 8, 7),
-    (4, 3, 8), (4, 5, 6), (4, 8, 1),
-    (5, 1, 5), (5, 3, 3), (5, 4, 1), (5, 6, 9),
-    (6, 0, 6), (6, 3, 9), (6, 5, 3), (6, 6, 2),
-    (7, 0, 9), (7, 1, 4), (7, 4, 2), (7, 5, 1), (7, 7, 8), (7, 8, 3),
-    (8, 0, 7), (8, 2, 2), (8, 7, 4)
-])
-    #medium not determined
-    coos = np.array([
-        (0, 6, 2),
-        (1, 1, 3), (1, 2, 2), (1, 7, 9),
-        (2, 0, 5), (2, 4, 1), (2, 6, 7),
-        (3, 1, 5), (3, 3, 6),
-        (4, 0, 7), (4, 2, 4), (4, 5, 5), (4, 6, 8),
-        (5, 0, 9), (5, 1, 6), (5, 7, 2), (5, 8, 3),
-        (6, 0, 8), (6, 2, 7), (6, 3, 5),
-        (7, 5, 8), (7, 6, 9), (7, 8, 1),
-        (8, 1, 9), (8, 3, 7)
-    ])
-    base[coos[:,0], coos[:,1]] = coos[:,2]
-    return base
+                raise ValueError("Invalid mode")
 
-def extract_groups_vectorized(arr, coords, mode="box", indices=False):
-    n = arr.shape[0]
-    b = int(math.sqrt(n))
-    coords = np.array(coords)
-
-    def get_indices(i, j):
-        if mode == "row":
-            return np.full(n, i), np.arange(n)
-        elif mode == "column":
-            return np.arange(n), np.full(n, j)
-        elif mode == "box":
-            ti, tj = (i // b) * b, (j // b) * b
-            di, dj = np.meshgrid(np.arange(b), np.arange(b), indexing='ij')
-            return ti + di.ravel(), tj + dj.ravel()
+        if indices:
+            all_entries = [
+                np.stack([*(idxs := get_indices(i, j)), arr[idxs]], axis=1)
+                for i, j in coords
+            ]
+            return np.vstack(all_entries)
         else:
-            raise ValueError("Invalid mode")
-
-    if indices:
-        all_entries = [
-            np.stack([*(idxs := get_indices(i, j)), arr[idxs]], axis=1)
-            for i, j in coords
-        ]
-        return np.vstack(all_entries)
-    else:
-        return np.array([arr[get_indices(i, j)] for i, j in coords])
-
-def get_pos(arr, coos):
-    """
-    arr: the base game array
-    coos: the coordinates of the box to be checked in array
-    return: the possible numbers that can be put in the box
-    """
-    n = arr.shape[0]
-    Pos= []
-    for i in range(coos.shape[0]):
-        pos = np.arange(1, n+1)
-        if np.all(arr[coos[i,0], coos[i,1]]==0):
-            box = extract_groups_vectorized(arr, [coos[i]], mode="box")
-            row = extract_groups_vectorized(arr, [coos[i]], mode="row")
-            col = extract_groups_vectorized(arr, [coos[i]], mode="column")
+            return np.array([arr[get_indices(i, j)] for i, j in coords])
+    def get_pos(self, coos, check_line=False):
+        """
+        arr: the base game array
+        coos: the coordinates of the box to be checked in array
+        return: the possible numbers that can be put in the box
+        """
+        arr = self.base
+        coos = np.array(coos)
+        coos = self.extract_groups_vectorized(coos, mode="box", indices=True)[:,[0,1]]
+        coos = coos[arr[coos[:,0], coos[:,1]]==0]
+        n = self.n
+        Pos= []
+        if(coos.size == 0):
+            # print("\033[91mWARNING\033[0m: no empty cells in box")
+            return []
+        for i in range(coos.shape[0]):
+            pos = np.arange(1, n+1)
+            box = self.extract_groups_vectorized([coos[i]], mode="box")
+            row = self.extract_groups_vectorized([coos[i]], mode="row")
+            col = self.extract_groups_vectorized([coos[i]], mode="column")
             pos = np.setdiff1d(pos, box)
             pos = np.setdiff1d(pos, row)
             pos = np.setdiff1d(pos, col)
             Pos.append(pos)
-        else:
-            print("\033[91mWARNING\033[0m: played box is called. check implementation")
-            print(f"\t Already played box at any position in {coos}")
-            return arr[coos[:,0], coos[:,1]]
-    return Pos
-
-def get_box_topleft_coords(n):
-    if(int(np.sqrt(n))**2 != n):
-        raise ValueError("n must be a perfect square")
-    b = int(n**0.5)
-    starts = np.arange(0, n, b)
-    ii, jj = np.meshgrid(starts, starts, indexing='ij')
-    return np.stack([ii.ravel(), jj.ravel()], axis=1)
-
-
-
-def check_contradiction(base):
-    n = base.shape[0]
-    all_boxs = get_box_topleft_coords(n)
-    for boxco in all_boxs:
-        box = extract_groups_vectorized(base, [boxco], mode="box", indices=True)
-        vals = box[:,2]!=0
-        filled = box[vals,2]
-        xi, yi = box[np.logical_not(vals),0], box[np.logical_not(vals),1]
-        poss  = get_pos(base, np.array([xi, yi]).T)
-        poss_all = np.unique(np.concatenate(poss))
-        to_do = np.setdiff1d(np.arange(1,n+1), filled)
-        if not np.array_equal(poss_all, to_do):
-            print("\033[91mWARNING\033[0m: contradiction found")
-            print(f"\t Missing possible numbers {np.setdiff1d(to_do,poss_all)} in box\n{box[:,2]}")
-            return True
-        if any(len(a) == 0 for a in poss):
-            i =[i for i, a in enumerate(poss) if len(a) == 0][0]
-            print("\033[91mWARNING\033[0m: contradiction found")
-            print(f"\t No possible numbers at ({xi[i]},{yi[i]}) in box\n{box}")
-            return True
-    return False
-
-# print_sudoku_style(initialization(9))
+        if check_line:
+            removers = self.__get_liners_pos()
+            keys = coos[:,0]*n+coos[:,1]
+            for i in range(len(keys)):
+                Pos[i] = np.setdiff1d(Pos[i], removers[keys[i]])
+        return Pos, coos
+    def check_contradiction(self):
+        base = self.base
+        n = base.shape[0]
+        all_boxs = self.boxCoos
+        for boxco in all_boxs:
+            box = self.extract_groups_vectorized([boxco], mode="box", indices=True)
+            vals = box[:,2]!=0
+            filled = box[vals,2]
+            xi, yi = box[np.logical_not(vals),0], box[np.logical_not(vals),1]
+            out  = self.get_pos([boxco], check_line=False)
+            if(len(out) == 0):
+                continue
+            else:
+                poss, _ = out
+            poss_all = np.unique(np.concatenate(poss))
+            to_do = np.setdiff1d(np.arange(1,n+1), filled)
+            if not np.array_equal(poss_all, to_do):
+                # print("\033[91mWARNING\033[0m: contradiction found")
+                # print(f"\t Missing possible numbers {np.setdiff1d(to_do,poss_all)} in box\n{box[:,2]}")
+                return True
+            if any(len(a) == 0 for a in poss):
+                i =[i for i, a in enumerate(poss) if len(a) == 0][0]
+                # print("\033[91mWARNING\033[0m: contradiction found")
+                # print(f"\t No possible numbers at ({xi[i]},{yi[i]}) in box\n{box}")
+                return True
+        return False
+    
+    def __get_liners_pos(self):
+        def on_same_line(points):
+            if len(points) <= 1:
+                return True
+            xs, ys = zip(*points)
+            return all(x == xs[0] for x in xs) or all(y == ys[0] for y in ys)
+        base = self.base
+        n = base.shape[0]
+        all_boxs = self.boxCoos
+        poss_remove = [[]]*(n**2)
+        for boxco in all_boxs:
+            out  = self.get_pos([boxco], check_line=False)
+            if(len(out) == 0):
+                continue
+            else:
+                poss, coos = out
+            coords = coos
+            X = coos[:,0]
+            Y = coos[:,1]
+            num_to_indices = defaultdict(list)
+            for idx, values in enumerate(poss):
+                for v in values:
+                    num_to_indices[v].append(idx)
+            result = []
+            for number, indices in num_to_indices.items():
+                points = [coords[i] for i in indices]
+                if on_same_line(points):
+                    result.append((number,X[indices], Y[indices]))
+            # check if result not trivial and thus has meaningful information
+            for num,X,Y in result:
+                row = np.all(X == X[0])
+                if len(X) == 1 or len(Y) == 1:
+                    continue
+                if not row:
+                    temp = X.copy()
+                    X = Y.copy()
+                    Y = temp.copy()
+                a= np.arange(X[0] - X[0]%int(np.sqrt(n)), X[0] - X[0]%int(np.sqrt(n)) + int(np.sqrt(n)))
+                row_indices = np.delete(a,np.where(a==X[0]))
+                rows_indices = list(zip(row_indices,[Y[0]]*(int(np.sqrt(n))-1)))
+                if(not row):
+                    rows_indices = list(zip([X[0]]*(int(np.sqrt(n))-1),row_indices))
+                groups = self.extract_groups_vectorized(rows_indices, mode="row"*int(row)+"column"*int(not row), indices=False)
+                patience = 0
+                for group in groups:
+                    if num in group:
+                        patience += 1
+                    if patience == int(np.sqrt(n))-1:
+                        break
+                if patience < int(np.sqrt(n))-1:
+                    for i in range(n):
+                        if(i in Y):
+                            continue
+                        poss_remove[(X[0]*n+i)*int(row) + (X[0]+n*i)*int(not row)] = np.unique(np.append(poss_remove[(X[0]*n+i)*int(row) + (X[0]+n*i)*int(not row)], int(num)))
+        return poss_remove
+    

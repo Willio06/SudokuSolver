@@ -1,3 +1,12 @@
+CYAN = "\033[96m"
+MAGENTA = "\033[95m"
+RESET = "\033[0m"
+
+print(f"{CYAN}--------------{RESET} {MAGENTA}Sudoku Solver{RESET} {CYAN}--------------{RESET}")
+
+print("loading CNN model and CNN related tools...")
+print("I promise this will not take long(er than doing it manually)")
+
 from split_image import split_image
 from PIL import Image
 from CNN import ModelLogger, MNIST_ResNet, show_sample_images
@@ -6,10 +15,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import torch
+import time
 import sys
-from gamehub import stepper
+from gamehub import solver
 import torchvision.transforms.v2 as transforms
-from functions import print_sudoku_style
+from functions import Sudoku
 def modelLoader():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     modelLogger  = ModelLogger("model_1", device=device)
@@ -49,13 +59,13 @@ def get_numbers(imageName,split_dir="./splits/", n=9):
 
 
 if __name__ == "__main__":
+    print("\033[96m -- model loaded --\033[0m ")
     parser = argparse.ArgumentParser(usage="Solve Sudoku based on input image", description="add Imagepath, --dimension default=9, --splits_dir  default=./splits/ ")
 
     if len(sys.argv) <2:
         print("No arguments provided.\n")
         parser.print_help()
         exit(0)
-    
     parser = argparse.ArgumentParser(usage="Solve Sudoku based on input image", description="add Imagepath, --dimension default=9, --splits_dir  default=./splits/ ")
     parser.add_argument("ImagePath", help="name of the image, or file path, with extension e.g. [.png] [.jpg]")
     parser.add_argument("--dimension",default=9,type=int, help="Dimension of the Sudoku, eg 9x9 -> 9, DEFAULT=9")
@@ -63,5 +73,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     numbers  = np.array(prepper(args.ImagePath,n=args.dimension, split_dir=args.splits_dir))
     base = numbers.reshape((args.dimension,args.dimension))
-    print_sudoku_style(base)
-    stepper(base)
+    SudokuBase = Sudoku(base)
+    print("\033[92m Sudoku Base:\033[0m")
+    SudokuBase.print_sudoku()
+    start = time.time()
+    print("Solving Sudoku started at ", time.strftime("%H:%M:%S"))
+    solver(SudokuBase)
+    print("Solving Sudoku finished at ", time.strftime("%H:%M:%S"))
+    print("Time taken: ", time.time()-start)
+    print("\033[92m Sudoku Solved:\033[0m")
+    SudokuBase.print_sudoku_progress()
+
