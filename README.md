@@ -74,7 +74,7 @@ No low activity trimming with specialized tranform, ```--low_activity_threshold 
 
 [![Bad example, will fail](readmeImages/no_trim.png "Bad example, will fail")](readmeImages/no_trim.png)
 
-With trimming, ```---low_activity_threshold 0.5```. This way the CNN reads it as 2. 
+With trimming (default), ```---low_activity_threshold 0.5```. This way the CNN reads it as 2. 
 
 [![good example](readmeImages/trim.png "good example")](readmeImages/trim.png)
 
