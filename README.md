@@ -8,7 +8,7 @@ Anyway here is a quick overview:
 Ommmmgggg, I feel you queen. I made it so it's all in NumPy. Guess you'll have to copy it by hand in a vector array...
 SIKE
 
-Just plug in a screenshot of your puzzle. A CNN trained on numbers will do the hard work for you. It might take some time to load in at the start. But it will be faster than making doing it manually. The way it works is simple (and so if it doesn't work for you...):
+Just plug in a screenshot of your puzzle. A CNN trained on numbers will do the hard work for you. It might take some time to load in at the start. But it will be faster than making doing it manually. The way it works is simple (and so if it doesn't work for you... [see good example images](#good-sudoku-images)):
 
 - Makes the image square
 - Cuts in $n^2$ beautiful image blocks (default $n=9$)
@@ -47,6 +47,16 @@ A contradiction would make the sudoku not solvable. These are only two condition
 ### Some Images
 [![Result 1](result1.png "Result1")](result1.png)
 [![Result 2](result2.png "Result2")](result2.png)
+
+### Good Sudoku Images
+Try to take the screenshot as square as possible to prevent distortion. Do not include fancy borders etc, see example
+
+This is a bad example. It includes a decorative border.
+[![Bad example, will fail](exampleSudokus/test.png "Bad example, will fail")](exampleSudokus/test.png)
+
+This is a better shot of the sudoku.
+[![good example](exampleSudokus/testT.png "good example")](exampleSudokus/testT.png)
+
 
 
 ### Disclaimer
