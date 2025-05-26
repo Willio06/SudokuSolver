@@ -44,7 +44,7 @@ A contradiction would make the sudoku not solvable. These are only two condition
 - If there is an empty cell with no possibilities
 - If there is a number with no possible cell
 
-### Some Images
+## Some Images
 [![Result 1](readmeImages/result1.png "Result1")](readmeImages/result1.png)
 [![Result 2](readmeImages/result2.png "Result2")](readmeImages/result2.png)
 
@@ -85,5 +85,5 @@ Training progress:
 [![CNN training plot](cnn/model_1_learning_curves.png "CNN training plot")](cnn/model_1_learning_curves.png)
 ```"test_acc": 0.9944594594594595```
 
-### Disclaimer
+## Disclaimer
 I know it's messy. The repo is just everything thrown together. Same for the code. I don't care, it's just a side show.
