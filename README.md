@@ -69,6 +69,9 @@ No crop is better, ```--center_crop 28```. This way the CNN reads it as 2.
 No low activity trimming with specialized tranform, ```--low_activity_threshold 0```. The border is too prominent in this image. It will read as 7.
 [![Bad example, will fail](no_trim.png "Bad example, will fail")](no_trim.png)
 
+With trimming, ```---low_activity_threshold 0.5```. This way the CNN reads it as 2. 
+[![good example](trim.png "good example")](trim.png)
+
 If the results are still bad try to make the image more square. 
 ### Disclaimer
 I know it's messy. The repo is just everything thrown together. Same for the code. I don't care, it's just a side show.
