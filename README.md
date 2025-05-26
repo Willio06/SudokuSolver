@@ -53,11 +53,11 @@ Try to take the screenshot as square as possible to prevent distortion. Do not i
 
 This is a bad example. It includes a decorative border.
 
-[![Bad example, will fail](readmeImages/exampleSudokus/test.png "Bad example, will fail")](readmeImages/exampleSudokus/test.png)
+[![Bad example, will fail](readmeImages/test.png "Bad example, will fail")](readmeImages/test.png)
 
 This is a better shot of the sudoku.
 
-[![good example](readmeImages/exampleSudokus/testT.png "good example")](readmeImages/exampleSudokus/testT.png)
+[![good example](readmeImages/testT.png "good example")](readmeImages/testT.png)
 
 When Numbers are close to the border of the cut images some problems can occur. The CNN crop images to get centered results with no borders. This is not always good, since cuts may not result in centered numbers (see example). A specialized tranform, will try to trim borders from images. One can use variable ```--center_crop 35``` to stop or increase cropping. The default crops from size 35x35 to 28x28. Setting this variable will stop cropping. This specialized transform checks for low activity rows and columns. When a certain vector has less than ```--low_activity_percent``` % (default 10) with value over ```--low_activity_threshold``` (default 0.5), it is removed.
 
@@ -82,6 +82,7 @@ If the results are still bad try to make the image more square.
 
 ### CNN
 Training progress:
+
 [![CNN training plot](cnn/model_1_learning_curves.png "CNN training plot")](cnn/model_1_learning_curves.png)
 ```"test_acc": 0.9944594594594595```
 
