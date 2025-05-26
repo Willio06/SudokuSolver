@@ -4,9 +4,9 @@
 This algorithm was made in light of how I solve sudokus. Sudokus I make to waste my time, rather than studying for the exams.
 Anyway here is a quick overview:
 
-## Ommmmggg, how do I get my sudoku in python????
-Ommmmgggg, I feel you queen. I made it so it's all in NumPy. Guess you'll have to copy it by hand in a vector array...
-SIKE
+## How do I get my sudoku in python?
+I made it so it's all in NumPy. Guess you'll have to copy it by hand in a vector array...
+NOPE
 
 Just plug in a screenshot of your puzzle. A CNN trained on numbers will do the hard work for you. It might take some time to load in at the start. But it will be faster than making doing it manually. The way it works is simple (and so if it doesn't work for you... [see good example images](#good-sudoku-images)):
 
