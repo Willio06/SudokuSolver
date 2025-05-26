@@ -59,7 +59,9 @@ This is a better shot of the sudoku.
 
 [![good example](exampleSudokus/testT.png "good Example")](exampleSudokus/testT.png)
 
-When Numbers are close to the border of the cut images some problems can occur. The CNN crop images to get centered results with no borders. This is not always good, since cuts may not result in centered numbers (see example). A specialized tranform, will try to trim borders from images. One can use variable ```--center_crop 35``` to stop or increase cropping. The default crops from size 35x35 to 28x28. Setting this variable will stop cropping. This specialized transform checks for low activity rows and columns. When a certain vector has less than ```--low_activity_percent``` % (default 10) with value over ```--low_activity_threshold``` (default 0.5), it is removed.
+When numbers are close to the border of the cut images some problems can occur. The CNN crop images to get centered results with no borders. This is not always good, since cuts may not result in centered numbers (see example). A specialized tranform, will try to trim border pixels from images. This specialized transform checks for low activity rows and columns. When a certain vector has less than ```--low_activity_percent``` % (default 10) with value over ```--low_activity_threshold``` (default 0.5), it is removed. 
+
+One can use variable ```--center_crop 35``` to stop or increase cropping (default 28). The default crops from size 35x35 to 28x28. Setting this variable to 28 will stop cropping.
 
 
 This is a bad example. Cropping is done by default, removing some parts of the number 2 with as a result the CNN thinking it's a 7.
