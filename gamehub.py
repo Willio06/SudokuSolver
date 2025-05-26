@@ -60,7 +60,11 @@ class SudokuSolver:
         found = False
         while not found:
             for boxco in sudoku.boxCoos:
-                poss,coos  = sudoku.get_pos([boxco])
+                out  = sudoku.get_pos([boxco])
+                if(len(out) == 0):
+                    continue
+                else:
+                    poss, coos = out
                 for i in range(len(poss)):
                     if len(poss[i]) == k:
                         for j in range(len(poss)):
