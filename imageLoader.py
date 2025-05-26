@@ -20,6 +20,38 @@ import sys
 from gamehub import solver
 import torchvision.transforms.v2 as transforms
 from functions import Sudoku
+import numpy as np
+from PIL import Image
+
+class TrimLowActivity:
+    def __init__(self, threshold=0.5, percent=5):
+        self.threshold = threshold      # e.g., pixel value threshold (0.5)
+        self.percent = percent / 100.0  # e.g., 5% = 0.05
+
+    def __call__(self, img):
+        # Convert PIL to NumPy
+        img_np = np.array(img).astype(np.float32)
+
+        # Normalize if in 0-255 range
+        if img_np.max() > 1:
+            img_np /= 255.0
+
+        # Row mask: keep rows where enough pixels > threshold
+        row_activity = np.mean(img_np > self.threshold, axis=1)
+        valid_rows = row_activity > self.percent
+
+        # Column mask: same for columns
+        col_activity = np.mean(img_np > self.threshold, axis=0)
+        valid_cols = col_activity > self.percent
+
+        # Trim the image
+        trimmed = img_np[np.ix_(valid_rows, valid_cols)]
+
+        # Resize to 28x28 again (or keep as is if preferred)
+        trimmed_img = Image.fromarray((trimmed * 255).astype(np.uint8)).resize((28, 28))
+
+        return trimmed_img
+
 def modelLoader():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     modelLogger  = ModelLogger("model_1", device=device)
@@ -27,7 +59,7 @@ def modelLoader():
     model = modelLogger.load_model(model)
     return model
 
-def prepper(image,n=9, split_dir = "./splits/"):
+def prepper(image,n=9, split_dir = "./splits/", cropy=35, low_activity_threshold=0.5, low_activity_percent=10):
     split_image(image,n,n,should_cleanup=False,should_square=True, output_dir=split_dir, should_quiet=True)
     imageName = os.path.basename(image)
     imageName, file_extension = os.path.splitext(imageName)
@@ -38,10 +70,10 @@ def prepper(image,n=9, split_dir = "./splits/"):
         grayscale_image = image.convert("L")
         # Save the grayscale image
         grayscale_image.save(dirr)
-    return get_numbers(imageName+file_extension,split_dir=split_dir, n=n)
-def get_numbers(imageName,split_dir="./splits/", n=9):
+    return get_numbers(imageName+file_extension,split_dir=split_dir, n=n, crop=cropy, low_activity_threshold=low_activity_threshold, low_activity_percent=low_activity_percent)
+def get_numbers(imageName,split_dir="./splits/", n=9, crop=35, low_activity_threshold=0.5, low_activity_percent=10):
     numbers = []
-    transform = transforms.Compose([transforms.PILToTensor(), transforms.Resize((35,35)), transforms.CenterCrop((28,28))])
+    transform = transforms.Compose([TrimLowActivity(threshold=low_activity_threshold, percent=low_activity_percent), transforms.PILToTensor(), transforms.Resize((crop,crop)), transforms.CenterCrop((28,28))])
     model = modelLoader()
     imageName, file_extension = os.path.splitext(imageName)
     for i in range(n**2):
@@ -70,8 +102,12 @@ if __name__ == "__main__":
     parser.add_argument("ImagePath", help="name of the image, or file path, with extension e.g. [.png] [.jpg]")
     parser.add_argument("--dimension",default=9,type=int, help="Dimension of the Sudoku, eg 9x9 -> 9, DEFAULT=9")
     parser.add_argument("--splits_dir",default="./splits/",type=str, help="Directory for use of temporary image, ie reading the numbers, DEFAULT=./splits/")
+    parser.add_argument("--center_crop",default=35,type=int, help="Images of numbers get resized to this value and then center cropped to 28x28 before CNN evalution, DEFAULT=35")
+    parser.add_argument("--low_activity_threshold",default=0.5,type=float, help="At what treshold is are rows and columns of an image removed, DEFAULT=0.5")
+    parser.add_argument("--low_activity_percent",default=10,type=int, help="At what percentage of low activity in the image is a row or column removed, DEFAULT=10")
     args = parser.parse_args()
-    numbers  = np.array(prepper(args.ImagePath,n=args.dimension, split_dir=args.splits_dir))
+
+    numbers  = np.array(prepper(args.ImagePath,n=args.dimension, split_dir=args.splits_dir, cropy=args.center_crop))
     base = numbers.reshape((args.dimension,args.dimension))
     SudokuBase = Sudoku(base)
     print("\033[92m Sudoku Base:\033[0m")
