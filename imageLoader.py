@@ -54,7 +54,7 @@ class TrimLowActivity:
 
 def modelLoader():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    modelLogger  = ModelLogger("model_1", device=device)
+    modelLogger  = ModelLogger("model_1", device=device, output_dir="./cnn/")
     model = MNIST_ResNet(classes=11)
     model = modelLogger.load_model(model)
     return model
