@@ -89,4 +89,4 @@ Training progress:
 ```"test_acc": 0.9944594594594595```
 
 ## Disclaimer
-I know it's messy. The repo is just everything thrown together. Same for the code. I don't care, it's just a side show.
+I know it's messy. The repo is just everything thrown together. Same for the code.
