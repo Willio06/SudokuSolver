@@ -7,6 +7,7 @@ print(f"{CYAN}--------------{RESET} {MAGENTA}Sudoku Solver{RESET} {CYAN}--------
 print("loading CNN model and CNN related tools...")
 print("I promise this will not take long(er than doing it manually)")
 
+from PIL.ImageOps import crop
 from split_image import split_image
 from PIL import Image
 from CNN import ModelLogger, MNIST_ResNet, show_sample_images
@@ -58,7 +59,36 @@ def modelLoader():
     model = MNIST_ResNet(classes=11)
     model = modelLogger.load_model(model)
     return model
+def costum_prepper(path,n=9, split_dir = "./splits/", cropy=35, low_activity_threshold=0.5, low_activity_percent=10):
+    XXX = []
+    YYY = []
+    for image in os.listdir(path):
+        image = os.path.join(path, image)
+        split_image(image,n,n,should_cleanup=False,should_square=True, output_dir=split_dir, should_quiet=True)
+        imageName = os.path.basename(image)
+        imageName, file_extension = os.path.splitext(imageName)
+        for i in range(n**2):
+            dirr  = split_dir+imageName+f"_{i}"+file_extension
+            image = Image.open(dirr)
+            # Convert the image to grayscale. The `"L"` argument in Pillow represents grayscale mode.
+            grayscale_image = image.convert("L")
+            # Save the grayscale image
+            grayscale_image.save(dirr)
+        numbers = [int(i) for i in imageName if i.isdigit()]
+        if len(numbers) != n**2:
+            print(f"Warning: Expected {n**2} numbers in the filename, but found {len(numbers)}. Defaulting to 0 for missing values.")
+            print(f"Filename: {imageName}, Extracted numbers: {numbers}")
+            return 0
+        transform = transforms.Compose([TrimLowActivity(threshold=low_activity_threshold, percent=low_activity_percent), transforms.PILToTensor(), transforms.Resize((cropy,cropy)), transforms.CenterCrop((28,28))])
+        for i in range(n**2):
+            dirr  = split_dir+imageName+f"_{i}"+file_extension
+            X=1-transform(Image.open(dirr))
+            X = X.unsqueeze(0)/255.0
 
+            XXX.append(X.reshape(1, -1))
+            YYY.append(numbers[i])
+    return np.array(XXX)[:,0,:], np.array(YYY)
+    
 def prepper(image,n=9, split_dir = "./splits/", cropy=35, low_activity_threshold=0.5, low_activity_percent=10):
     split_image(image,n,n,should_cleanup=False,should_square=True, output_dir=split_dir, should_quiet=True)
     imageName = os.path.basename(image)
@@ -112,6 +142,19 @@ if __name__ == "__main__":
     SudokuBase = Sudoku(base)
     print("\033[92m Sudoku Base:\033[0m")
     SudokuBase.print_sudoku()
+    ask = input("Do you want to change values in this Sudoku? (y/n) ")
+    while (ask != "n"):
+        if (ask != "y" and ask != "n"):
+            print("Please answer with 'y' or 'n'")
+        if ask == "y":
+            changes = input("Enter changes in the format 'row col value' separated by spaces per change (e.g. '015 237' to change (0,1) to 5 and (2,3) to 7): ")
+            for change in changes.split(" "):
+                row, col, value = int(change[0]), int(change[1]), int(change[2])
+                SudokuBase.base[row][col] = value
+            print("\033[92m Updated Sudoku Base:\033[0m")
+            SudokuBase.print_sudoku()
+        ask = input("Do you want to change values in this Sudoku? (y/n) ")
+            
     start = time.time()
     print("Solving Sudoku started at ", time.strftime("%H:%M:%S"))
     solver(SudokuBase)
